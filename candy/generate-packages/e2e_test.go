@@ -127,7 +127,7 @@ func readPkg(t *testing.T, pkgPath string) (string, map[string]bool) {
 	if err != nil {
 		t.Fatalf("open %s: %v", pkgPath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	zr, err := zstd.NewReader(f)
 	if err != nil {
 		t.Fatalf("zstd reader: %v", err)
