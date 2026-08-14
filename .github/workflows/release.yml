@@ -1,0 +1,51 @@
+# Publish the prebuilt `generate-packages` plugin binary (amd64 + arm64) + its
+# `.providers` manifest as GitHub release assets on a v<CalVer> tag push.
+#
+# The per-distro package repos (opencharly/charly-{alpine,arch,fedora,ubuntu,
+# debian,openwrt}) download these assets and drop them into
+# /usr/lib/charly/plugins/ on the runner, so `charly generate-packages` resolves
+# project-less via discoverBakedPluginWords — no charly.yml, no Go toolchain, no
+# network fetch of plugin source, deterministic. The amd64 binary packages BOTH
+# arches (nFPM just copies the arch-specific binary+plugins into the package; the
+# plugin's own arch is irrelevant), so the distro workflows only ever download
+# the amd64 asset.
+#
+# Pure Go cross-compilation (CGO_ENABLED=0), so this runs on a stock
+# ubuntu-latest runner. The `.providers` manifest is COMMITTED (content:
+# `command:generate-packages`) — it is arch-independent, so one file serves both
+# arches.
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: candy/generate-packages/go.mod
+          cache-dependency-path: candy/generate-packages/go.sum
+      - name: Build amd64
+        run: |
+          cd candy/generate-packages && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -trimpath -o ../../generate-packages-linux-amd64 ./cmd/serve
+      - name: Build arm64
+        run: |
+          cd candy/generate-packages && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -buildvcs=false -trimpath -o ../../generate-packages-linux-arm64 ./cmd/serve
+      - name: Verify the binaries are the expected ELF arches
+        run: |
+          file generate-packages-linux-amd64 | grep -q "x86-64"
+          file generate-packages-linux-arm64 | grep -q "aarch64"
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            generate-packages-linux-amd64
+            generate-packages-linux-arm64
+            generate-packages.providers

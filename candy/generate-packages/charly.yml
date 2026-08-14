@@ -1,0 +1,30 @@
+generate-packages:
+    candy:
+        version: 2026.225.1508
+        description: |-
+            External charly COMMAND-class plugin contributing the `generate-packages`
+            command: build native packages (deb/rpm/apk/archlinux/ipk/msix) via nFPM,
+            driven by the `packaging:` section of a charly candy's charly.yml. The plugin
+            is the command surface only — every nFPM/parsing/variant/optdepends function
+            lives in sdk/packagekit (shared with the sdk's localpkg replacement). On
+            `charly generate-packages --candy … --binary … --plugins … --version … --arch …
+            [--variant …] [--formats …] --out …`, charly resolves this plugin's binary
+            (host-built from source, or baked into a deployed image) and fork/execs it in
+            CLI mode (sdk.Main → CliMain). The plugin reads ONLY the charly.yml's
+            `packaging:` section — no deps table, no PKGBUILD/spec/debian-control, no
+            other metadata resource. A variant naming a plugin absent from the `--plugins`
+            dir fails loudly (R4 — never a silently-dropped plugin).
+        plugin:
+            providers:
+                - command:generate-packages
+            source: github.com/opencharly/plugin-generate-packages/candy/generate-packages
+        plan:
+            - # ADE check: a deterministic build-context check that does NOT depend on the
+              # project context the `charly generate-packages` CLI needs. The full CLI
+              # end-to-end (`charly generate-packages …` → packages on disk) is exercised
+              # by the Go e2e (TestGeneratePackagesE2E) + the live R10.
+              check: the out-of-tree generate-packages command plugin ships a buildable Go module (go.mod + the provider main) the host can build + fork/exec; the full `charly generate-packages` end-to-end is exercised by the Go e2e + the live R10
+              id: generate-packages-module-present
+              context:
+                - build
+              command: "true"
