@@ -1,0 +1,31 @@
+# CI for the generate-packages command plugin.
+#
+# `go test ./...` runs the full plugin path (Kong parse → runGeneratePackages →
+# sdk/packagekit.Build) against the testdata fixture: it builds a real package per
+# requested format (deb/rpm/archlinux/apk/ipk), asserts the archlinux .PKGINFO
+# carries the injected optdepends, and asserts the per-variant plugin sets are
+# filtered into the package (default → charly with plugin-a+plugin-b, minimal →
+# charly-minimal with plugin-a only). The e2e IS the per-format package build +
+# structure assertion the plan calls for — no separate package-build step needed.
+name: ci
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: candy/generate-packages/go.mod
+          cache-dependency-path: candy/generate-packages/go.sum
+      - name: go vet
+        run: go vet ./...
+        working-directory: candy/generate-packages
+      - name: go test (e2e builds a package per format + per variant)
+        run: go test ./...
+        working-directory: candy/generate-packages

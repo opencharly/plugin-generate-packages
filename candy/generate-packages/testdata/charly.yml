@@ -1,0 +1,38 @@
+fixture:
+    candy:
+        version: 2026.225.1508
+        description: |-
+            Test fixture for the generate-packages plugin e2e — a minimal candy
+            carrying a `packaging:` section (the single metadata source the plugin
+            reads). The binary + plugins are fabricated in the test.
+        packaging:
+            name: charly
+            description: the charly CLI
+            maintainer: OpenCharly <maintainers@opencharly.ai>
+            homepage: https://opencharly.ai
+            license: MIT
+            variants:
+                default:
+                    description: the default plugin set
+                    plugins: [plugin-a, plugin-b]
+                minimal:
+                    description: the minimal plugin set
+                    plugins: [plugin-a]
+            formats:
+                deb:
+                    depends: [podman]
+                    default_variant: default
+                rpm:
+                    depends: [podman]
+                    default_variant: default
+                archlinux:
+                    depends: [podman]
+                    optdepends:
+                        libvirt: for VM management
+                    default_variant: default
+                apk:
+                    depends: [podman]
+                    default_variant: default
+                ipk:
+                    depends: []
+                    default_variant: default
