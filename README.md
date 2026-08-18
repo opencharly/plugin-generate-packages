@@ -105,6 +105,40 @@ download the amd64 asset and drop it into `/usr/lib/charly/plugins/` so
 `charly generate-packages` resolves project-less via
 `discoverBakedPluginWords`.
 
+### Go-module consumption — the tag form is NOT the release tag
+
+A consumer that `require`s this plugin as a **Go module** (the superproject's
+`candy/generate-packages/` re-export shim) cannot use the release tag. The module
+lives in a repository **subdirectory**, so Go looks for a tag whose name is the
+module's subdirectory path followed by the version:
+
+```
+candy/generate-packages/v0.<YYYYDDD>.<HHMM>
+```
+
+Measured — Go names the ref it wants, and a bare root tag is not it:
+
+```
+$ go list -m github.com/opencharly/plugin-generate-packages/candy/generate-packages@v0.2026227.1233
+go: ...@v0.2026227.1233: invalid version:
+    unknown revision candy/generate-packages/v0.2026227.1233
+```
+
+The `v0.` major is required for the same reason the sdk uses it: a `major >= 2`
+version would force a `/vN` suffix on the module path. `<HHMM>` is written with
+leading zeros stripped (`0013` -> `13`), again mirroring the sdk scheme — semver
+rejects a leading-zero numeric segment.
+
+**Both tags are minted at merge, on the same merged HEAD**: the release tag
+`v<YYYY.DDD.HHMM>` and the module tag `candy/generate-packages/v0.<YYYYDDD>.<HHMM>`.
+Only the first is expected to trigger the release workflow — its `on.push.tags`
+filter is `v*`, and a module tag does not begin with `v`. That follows from the
+filter's glob semantics; the first module tag pushed is the confirmation.
+
+**Until a module tag exists, a consumer resolves a pseudo-version** — `@latest`
+answers `v0.0.0-<utc>-<sha>` today. That resolves and builds; it simply carries no
+release identity, which is why the module tag exists.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
