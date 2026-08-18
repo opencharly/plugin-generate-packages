@@ -115,9 +115,10 @@ repositories.** They are easy to conflate and this section is about the first:
 | `candy/generate-packages/` | **this repo** (`opencharly/plugin-generate-packages`) | the Go module — the plugin itself |
 | `candy/generate-packages/` | the superproject (`opencharly/charly`) | a thin re-export shim candy that `require`s the module above |
 
-A consumer that `require`s this plugin as a **Go module** — the superproject shim — cannot
-use the release tag. This repo's module lives in a repository **subdirectory**, so Go looks
-for a tag whose name is the module's subdirectory path followed by the version:
+The superproject shim is the consumer; this repo's module is the dependency. That consumer
+cannot `require` the dependency at its release tag. This repo's module lives in a repository
+**subdirectory**, so Go looks for a tag whose name is the module's subdirectory path followed
+by the version:
 
 ```
 candy/generate-packages/v0.<YYYYDDD>.<HHMM>
@@ -132,16 +133,24 @@ go: ...@v0.2026227.1233: invalid version:
 ```
 
 **Go never falls back to a root tag for a subdirectory module**, which the failing case above
-cannot show on its own. An external control settles it, using `hashicorp/consul` (a
-repo whose `api/` subdirectory module is independently tagged):
+cannot show on its own. An external control settles it, using
+[`hashicorp/consul`](https://github.com/hashicorp/consul) (a repo whose `api/` subdirectory
+module is independently tagged). Verbatim:
 
 ```
-$ go list -m github.com/hashicorp/consul/api@v1.32.0     # prefixed tag api/v1.32.0 exists
-github.com/hashicorp/consul/api v1.32.0                  # -> resolves
-
-$ go list -m github.com/hashicorp/consul/api@v1.9.9      # root tag v1.9.9 EXISTS on that repo
-go: ...: invalid version: unknown revision api/v1.9.9    # -> still fails
+$ go list -m github.com/hashicorp/consul/api@v1.32.0
+github.com/hashicorp/consul/api v1.32.0
+$ git ls-remote --tags https://github.com/hashicorp/consul refs/tags/v1.9.9 refs/tags/api/v1.32.0
+1f486aab22986b70de1ae9aaa368d0613091898e	refs/tags/api/v1.32.0
+8159a14bed92f774437618587fc8b38fe603ade1	refs/tags/v1.9.9
+$ go list -m github.com/hashicorp/consul/api@v1.9.9
+go: github.com/hashicorp/consul/api@v1.9.9: invalid version: unknown revision api/v1.9.9
+$ git ls-remote --tags https://github.com/hashicorp/consul refs/tags/api/v1.9.9
+(no output — the prefixed tag is absent)
 ```
+
+A ROOT tag exists in BOTH cases (`v1.9.9`), so the only variable between resolving and failing
+is whether the PREFIXED tag is present.
 
 The negative case is the decisive one: a root tag that genuinely exists is still not consulted
 for a subdirectory module.
