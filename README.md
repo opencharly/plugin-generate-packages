@@ -128,8 +128,7 @@ Measured — Go names the ref it wants, and a bare root tag is not it:
 
 ```
 $ go list -m github.com/opencharly/plugin-generate-packages/candy/generate-packages@v0.2026227.1233
-go: ...@v0.2026227.1233: invalid version:
-    unknown revision candy/generate-packages/v0.2026227.1233
+go: github.com/opencharly/plugin-generate-packages/candy/generate-packages@v0.2026227.1233: invalid version: unknown revision candy/generate-packages/v0.2026227.1233
 ```
 
 **Go never falls back to a root tag for a subdirectory module**, which the failing case above
@@ -149,8 +148,9 @@ $ git ls-remote --tags https://github.com/hashicorp/consul refs/tags/api/v1.9.9
 (no output — the prefixed tag is absent)
 ```
 
-A ROOT tag exists in BOTH cases (`v1.9.9`), so the only variable between resolving and failing
-is whether the PREFIXED tag is present.
+The failing arm is not a case of "no such version anywhere": the ROOT tag `v1.9.9` genuinely
+exists on that repo. What differs between the two arms is only whether the PREFIXED tag
+(`api/<version>`) exists — present for `v1.32.0`, absent for `v1.9.9`.
 
 The negative case is the decisive one: a root tag that genuinely exists is still not consulted
 for a subdirectory module.
