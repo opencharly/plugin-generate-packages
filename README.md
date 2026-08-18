@@ -139,18 +139,18 @@ module is independently tagged). Verbatim:
 ```
 $ go list -m github.com/hashicorp/consul/api@v1.32.0
 github.com/hashicorp/consul/api v1.32.0
-$ git ls-remote --tags https://github.com/hashicorp/consul refs/tags/v1.9.9 refs/tags/api/v1.32.0
-1f486aab22986b70de1ae9aaa368d0613091898e	refs/tags/api/v1.32.0
-8159a14bed92f774437618587fc8b38fe603ade1	refs/tags/v1.9.9
 $ go list -m github.com/hashicorp/consul/api@v1.9.9
 go: github.com/hashicorp/consul/api@v1.9.9: invalid version: unknown revision api/v1.9.9
-$ git ls-remote --tags https://github.com/hashicorp/consul refs/tags/api/v1.9.9
-(no output — the prefixed tag is absent)
+$ git ls-remote --tags https://github.com/hashicorp/consul \
+      refs/tags/api/v1.32.0 refs/tags/v1.32.0 refs/tags/api/v1.9.9 refs/tags/v1.9.9
+1f486aab22986b70de1ae9aaa368d0613091898e	refs/tags/api/v1.32.0
+8159a14bed92f774437618587fc8b38fe603ade1	refs/tags/v1.9.9
 ```
 
-The failing arm is not a case of "no such version anywhere": the ROOT tag `v1.9.9` genuinely
-exists on that repo. What differs between the two arms is only whether the PREFIXED tag
-(`api/<version>`) exists — present for `v1.32.0`, absent for `v1.9.9`.
+The last command queries all four refs and returns two, so the design is CROSSED: the arm that
+RESOLVES has the prefixed tag and **no root tag at all**; the arm that FAILS has a root tag and
+**no prefixed tag**. The prefixed tag is therefore necessary and sufficient, and the root tag is
+consulted in neither direction.
 
 The negative case is the decisive one: a root tag that genuinely exists is still not consulted
 for a subdirectory module.
