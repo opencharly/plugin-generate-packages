@@ -5,8 +5,8 @@ go 1.26.4
 require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/klauspost/compress v1.19.2
-	github.com/opencharly/sdk v0.2026227.1215
-	github.com/opencharly/spec v0.2026225.1800
+	github.com/opencharly/sdk v0.2026250.758
+	github.com/opencharly/spec v0.2026250.709
 )
 
 require (
