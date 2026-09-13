@@ -51,8 +51,9 @@ func TestGeneratePackagesE2E(t *testing.T) {
 			t.Errorf(".PKGINFO missing %q:\n%s", want, pkginfo)
 		}
 	}
-	// The default variant's plugin set is filtered into the package (the tar file list).
-	for _, want := range []string{"usr/bin/charly", "usr/lib/charly/plugins/plugin-a", "usr/lib/charly/plugins/plugin-b", "usr/lib/charly/plugins/plugin-a.providers"} {
+	// The default variant's plugin set is filtered into the package (the tar file list):
+	// the shared host once + a plugin-<word> symlink per plugin + its .providers.
+	for _, want := range []string{"usr/bin/charly", "usr/lib/charly/plugins/charly-lib", "usr/lib/charly/plugins/plugin-a", "usr/lib/charly/plugins/plugin-b", "usr/lib/charly/plugins/plugin-a.providers"} {
 		if !files[want] {
 			t.Errorf("package file list missing %q (have %v)", want, sortedKeys(files))
 		}
@@ -100,17 +101,20 @@ func writeFakeBinary(t *testing.T, dir string) string {
 	return p
 }
 
-// writeFakePlugins writes a plugins dir with two fake plugins + their .providers
-// manifests and returns the dir path.
+// writeFakePlugins writes a shared-host plugins dir — one charly-lib host +
+// plugin-<word> symlinks to it + their .providers manifests — and returns the dir.
 func writeFakePlugins(t *testing.T, dir string) string {
 	t.Helper()
 	plugins := filepath.Join(dir, "plugins")
 	if err := os.MkdirAll(plugins, 0o755); err != nil {
 		t.Fatalf("mkdir plugins: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(plugins, "charly-lib"), []byte("#!/bin/sh\necho fake host\n"), 0o755); err != nil {
+		t.Fatalf("write fake host: %v", err)
+	}
 	for _, f := range []string{"plugin-a", "plugin-b"} {
-		if err := os.WriteFile(filepath.Join(plugins, f), []byte("#!/bin/sh\necho "+f+"\n"), 0o755); err != nil {
-			t.Fatalf("write fake plugin %s: %v", f, err)
+		if err := os.Symlink("charly-lib", filepath.Join(plugins, f)); err != nil {
+			t.Fatalf("symlink fake plugin %s: %v", f, err)
 		}
 		if err := os.WriteFile(filepath.Join(plugins, f+".providers"), []byte("verb:"+f+"\n"), 0o644); err != nil {
 			t.Fatalf("write fake providers %s: %v", f, err)
