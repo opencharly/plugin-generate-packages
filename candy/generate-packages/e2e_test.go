@@ -45,7 +45,7 @@ func TestGeneratePackagesE2E(t *testing.T) {
 	}
 
 	// The archlinux .PKGINFO: name/version/arch + the injected optdepends.
-	pkginfo, files := readPkg(t, filepath.Join(out, "charly-2026.225.1200-1-x86_64.pkg.tar.zst"))
+	pkginfo, files, links := readPkg(t, filepath.Join(out, "charly-2026.225.1200-1-x86_64.pkg.tar.zst"))
 	for _, want := range []string{"pkgname = charly", "pkgver = 2026.225.1200", "arch = x86_64", "optdepend = libvirt: for VM management"} {
 		if !strings.Contains(pkginfo, want) {
 			t.Errorf(".PKGINFO missing %q:\n%s", want, pkginfo)
@@ -53,9 +53,15 @@ func TestGeneratePackagesE2E(t *testing.T) {
 	}
 	// The default variant's plugin set is filtered into the package (the tar file list):
 	// the shared host once + a plugin-<word> symlink per plugin + its .providers.
-	for _, want := range []string{"usr/bin/charly", "usr/lib/charly/plugins/charly-lib", "usr/lib/charly/plugins/plugin-a", "usr/lib/charly/plugins/plugin-b", "usr/lib/charly/plugins/plugin-a.providers"} {
+	for _, want := range []string{"usr/bin/charly", "usr/lib/charly/plugins/charly-lib", "usr/lib/charly/plugins/plugin-a", "usr/lib/charly/plugins/plugin-b", "usr/lib/charly/plugins/plugin-a.providers", "usr/lib/charly/plugins/plugin-b.providers"} {
 		if !files[want] {
 			t.Errorf("package file list missing %q (have %v)", want, sortedKeys(files))
+		}
+	}
+	// Every plugin entry is a symlink to the shared host.
+	for _, p := range []string{"plugin-a", "plugin-b"} {
+		if got := links["usr/lib/charly/plugins/"+p]; got != "charly-lib" {
+			t.Errorf("%s symlink target = %q, want charly-lib (links=%v)", p, got, links)
 		}
 	}
 
@@ -78,7 +84,7 @@ func TestGeneratePackagesE2E(t *testing.T) {
 	if _, err := os.Stat(minPkg); err != nil {
 		t.Fatalf("expected charly-minimal package: %v", err)
 	}
-	minInfo, minFiles := readPkg(t, minPkg)
+	minInfo, minFiles, _ := readPkg(t, minPkg)
 	if !strings.Contains(minInfo, "pkgname = charly-minimal") {
 		t.Errorf("minimal .PKGINFO pkgname not charly-minimal:\n%s", minInfo)
 	}
@@ -124,8 +130,9 @@ func writeFakePlugins(t *testing.T, dir string) string {
 }
 
 // readPkg reads an archlinux .pkg.tar.zst (zstd → tar) and returns the .PKGINFO
-// text plus the set of entry names in the tar (the package file list).
-func readPkg(t *testing.T, pkgPath string) (string, map[string]bool) {
+// text, the set of entry names in the tar (the package file list), and the
+// symlink targets (entry name → linkname).
+func readPkg(t *testing.T, pkgPath string) (string, map[string]bool, map[string]string) {
 	t.Helper()
 	f, err := os.Open(pkgPath)
 	if err != nil {
@@ -139,6 +146,7 @@ func readPkg(t *testing.T, pkgPath string) (string, map[string]bool) {
 	defer zr.Close()
 	tr := tar.NewReader(zr)
 	files := map[string]bool{}
+	links := map[string]string{}
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -148,16 +156,19 @@ func readPkg(t *testing.T, pkgPath string) (string, map[string]bool) {
 			t.Fatalf("tar next: %v", err)
 		}
 		files[hdr.Name] = true
+		if hdr.Typeflag == tar.TypeSymlink {
+			links[hdr.Name] = hdr.Linkname
+		}
 		if hdr.Name == ".PKGINFO" {
 			var buf bytes.Buffer
 			if _, err := io.Copy(&buf, tr); err != nil {
 				t.Fatalf("read .PKGINFO: %v", err)
 			}
-			return buf.String(), files
+			return buf.String(), files, links
 		}
 	}
 	t.Fatalf("no .PKGINFO in %s", pkgPath)
-	return "", nil
+	return "", nil, nil
 }
 
 // sortedKeys returns the sorted keys of m for stable error messages.
