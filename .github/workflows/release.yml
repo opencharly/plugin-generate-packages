@@ -20,6 +20,11 @@ on:
   push:
     tags:
       - 'v*'
+  # tag-on-merge creates tags via the REST API (git.createRef), which emits NO
+  # push event — so a tag push alone never fires for merged PRs and the release
+  # binary lags. workflow_dispatch (run with --ref v<CalVer>) is the explicit
+  # path to publish an existing tag's assets.
+  workflow_dispatch:
 
 permissions:
   contents: write
