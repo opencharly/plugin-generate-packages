@@ -1,4 +1,3 @@
-version: 2026.232.0520
 discover:
     - path: candy
       recursive: false
