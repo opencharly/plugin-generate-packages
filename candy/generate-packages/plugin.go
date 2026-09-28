@@ -18,6 +18,7 @@ package generatepackages
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
 
@@ -25,21 +26,25 @@ import (
 	pb "github.com/opencharly/spec/proto"
 )
 
+//go:embed schema/*.cue
+var schemaFS embed.FS
+
 const calver = "2026.226.0001"
 
 // NewProvider returns the command provider for in-proc registration (compiled-in) or out-of-proc serving.
 func NewProvider() pb.ProviderServer { return &provider{} }
 
-// NewMeta advertises command:generate-packages via sdk.NewMeta → BuildCapabilities so
-// the COMPILED-IN path registers it as a command provider (buildUnitInProc →
-// inprocProvider Class=command; the host builds its dynamic Kong grammar + dispatches
-// Invoke(OpRun)). The served schema carries no #*Input def — a command's args are
-// pass-through CLI tokens, not a structured plugin_input — so the capability has no
+// NewMeta advertises command:generate-packages via sdk.NewMeta → BuildCapabilities, together
+// with the plugin's OWN self-contained CUE schema (schema/generate-packages.cue) served over
+// Describe — there is NO schema-less plugin — so the COMPILED-IN path registers it as a command
+// provider (buildUnitInProc → inprocProvider Class=command; the host builds its dynamic Kong
+// grammar + dispatches Invoke(OpRun)). The served schema carries no #*Input def — a command's
+// args are pass-through CLI tokens, not a structured plugin_input — so the capability has no
 // InputDef.
 func NewMeta() pb.PluginMetaServer {
 	return sdk.NewMeta(calver,
 		[]sdk.ProvidedCapability{{Class: "command", Word: "generate-packages"}},
-		nil)
+		schemaFS)
 }
 
 // CliMain is the OUT-OF-PROCESS CLI-mode entry (charly fork/execs the binary with the

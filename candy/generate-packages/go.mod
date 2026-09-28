@@ -3,6 +3,7 @@ module github.com/opencharly/plugin-generate-packages/candy/generate-packages
 go 1.26.4
 
 require (
+	cuelang.org/go v0.16.1
 	github.com/alecthomas/kong v1.15.0
 	github.com/klauspost/compress v1.19.2
 	github.com/opencharly/sdk v0.2026256.1220
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	cuelang.org/go v0.16.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
