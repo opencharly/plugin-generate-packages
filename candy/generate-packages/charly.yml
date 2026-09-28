@@ -1,6 +1,5 @@
 generate-packages:
     candy:
-        version: 2026.225.1508
         description: |-
             External charly COMMAND-class plugin contributing the `generate-packages`
             command: build native packages (deb/rpm/apk/archlinux/ipk/msix) via nFPM,
