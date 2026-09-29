@@ -28,6 +28,10 @@ Canonical files:
 
 ## Load these skills first (R0)
 
+- `/charly-internals:go` — the `charly generate-packages` packaging/release
+  command reference (the plugin's user-facing surface: the CLI flags + the
+  `packaging:` section it reads). Load before changing the CLI grammar or the
+  packaging output.
 - `/charly-internals:plugin` — the plugin authoring reference: the `plugin:`
   block, the `command` provider class, the per-plugin CUE-schema contract,
   placement. Load before touching the provider or schema.
