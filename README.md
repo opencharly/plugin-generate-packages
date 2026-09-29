@@ -10,7 +10,13 @@ optdepends function lives in [`sdk/packagekit`](https://github.com/opencharly/sd
 `packagekit.LoadPackaging` + `packagekit.Build`. The plugin is only the Kong
 grammar + provider wiring.
 
-## What it does
+## What it provides
+
+| Capability | Surface |
+|---|---|
+| `command:generate-packages` | the `charly generate-packages` CLI — build native packages per `packaging:` variant/format |
+
+## How to use it
 
 `charly generate-packages` reads the `packaging:` section from a charly candy's
 `charly.yml` — the **single metadata source** — and builds native packages for
@@ -32,16 +38,14 @@ charly generate-packages \
   [--msix-pfx cert.pfx]          # msix (deferred); passphrase via NFPM_MSIX_PASSPHRASE
 ```
 
-- **`--candy` is the single metadata input** — the charly candy's charly.yml.
-  The plugin reads the `packaging:` section from it and builds the packages from
-  that + the flags.
+- **`--candy` is the single metadata input** — the plugin reads the `packaging:`
+  section from it and builds from that + the flags.
 - **`--variant`** selects the variant from `packaging.variants`; the package name
   is `charly` for the format's `default_variant`, `charly-<variant>` otherwise.
   The `--plugins` dir is filtered to the variant's plugin list.
-- **One `--arch` per invocation** — `--binary`/`--plugins` are arch-specific, so
-  a single arch keeps the CLI unambiguous; a distro workflow loops over
-  `amd64`/`arm64`.
-- `--formats` defaults to all six; validated against `nfpm.Enumerate()`.
+- **One `--arch` per invocation** — `--binary`/`--plugins` are arch-specific, so a
+  distro workflow loops over `amd64`/`arm64`.
+- A variant naming a plugin absent from `--plugins` fails loudly.
 
 ## The `packaging:` section
 
@@ -66,21 +70,7 @@ packaging:
     deb:
       depends: [podman]
       default_variant: default
-    archlinux:
-      depends: [podman]
-      optdepends:
-        libvirt: for VM management
-      default_variant: default
 ```
-
-A variant naming a plugin not present in the `--plugins` dir fails loudly at
-package-build time.
-
-## Known nFPM gap: archlinux optdepends
-
-nFPM does not emit Arch `optdepends` (PKGINFO supports it, nFPM doesn't expose
-it). `sdk/packagekit` post-processes the `.pkg.tar.zst` to inject
-`optdepend = <pkg>: <desc>` lines into `.PKGINFO` (deterministic, unit-tested).
 
 ## Development
 
@@ -89,11 +79,9 @@ cd candy/generate-packages
 go test ./...   # CLI parse tests + the e2e (builds a package per format + per variant)
 ```
 
-The e2e drives the FULL plugin path (`runFromArgs` → Kong parse →
+The e2e drives the full plugin path (`runFromArgs` → Kong parse →
 `runGeneratePackages` → `sdk/packagekit.Build`) against the `testdata/charly.yml`
-fixture and asserts the packages land with the right structure: one file per
-requested format, the archlinux `.PKGINFO` carrying the injected optdepends, and
-the variant's plugin set filtered into the package.
+fixture and asserts the packages land with the right structure.
 
 ## Release
 
@@ -102,75 +90,42 @@ On a `v*` tag push, the release workflow publishes the prebuilt
 committed `generate-packages.providers` manifest (content:
 `command:generate-packages`) as release assets. The per-distro package repos
 download the amd64 asset and drop it into `/usr/lib/charly/plugins/` so
-`charly generate-packages` resolves project-less via
-`discoverBakedPluginWords`.
+`charly generate-packages` resolves project-less via `discoverBakedPluginWords`.
 
-### Go-module consumption — the tag form is NOT the release tag
+## Consuming the Go module — the tag form is not the release tag
 
-**Two different directories share the path `candy/generate-packages/`, in two different
-repositories.** They are easy to conflate and this section is about the first:
-
-| | repository | what it is |
-|---|---|---|
-| `candy/generate-packages/` | **this repo** (`opencharly/plugin-generate-packages`) | the Go module — the plugin itself |
-| `candy/generate-packages/` | the superproject (`opencharly/charly`) | a thin re-export shim candy that `require`s the module above |
-
-The superproject shim is the consumer; this repo's module is the dependency. That consumer
-cannot `require` the dependency at its release tag. This repo's module lives in a repository
-**subdirectory**, so Go looks for a tag whose name is the module's subdirectory path followed
-by the version:
+The module lives in a repository **subdirectory**, so Go looks for a tag whose
+name is the module's subdirectory path followed by the version:
 
 ```
 candy/generate-packages/v0.<YYYYDDD>.<HHMM>
 ```
 
-Measured — Go names the ref it wants, and a bare root tag is not it:
+A bare root tag `v<YYYY.DDD.HHMM>` is **not** consulted for a subdirectory module.
+Both tags are minted at merge on the same merged HEAD; only the root `v*` tag
+triggers the release workflow. The `v0.` major is required because a `major >= 2`
+version would force a `/vN` suffix on the module path, and `<HHMM>` strips leading
+zeros (`0013` → `13`) because semver rejects a leading-zero numeric segment.
 
-```
-$ go list -m github.com/opencharly/plugin-generate-packages/candy/generate-packages@v0.2026227.1233
-go: github.com/opencharly/plugin-generate-packages/candy/generate-packages@v0.2026227.1233: invalid version: unknown revision candy/generate-packages/v0.2026227.1233
-```
+## Layout
 
-**Go never falls back to a root tag for a subdirectory module**, which the failing case above
-cannot show on its own. An external control settles it, using
-[`hashicorp/consul`](https://github.com/hashicorp/consul) (a repo whose `api/` subdirectory
-module is independently tagged). Verbatim:
+- `candy/generate-packages/` — the plugin module: `plugin.go` (provider + meta),
+  `cli.go` (the Kong grammar + effect), `schema/generate-packages.cue`,
+  `testdata/charly.yml`, `cmd/serve/main.go`.
+- `generate-packages.providers` — the committed providers manifest
+  (`command:generate-packages`).
+- `charly.yml` — the root project manifest (`discover: candy`).
+- `.github/workflows/ci.yml` / `release.yml` — the `go test` CI and the release
+  asset publish.
+- `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
 
-```
-$ go list -m github.com/hashicorp/consul/api@v1.32.0
-github.com/hashicorp/consul/api v1.32.0
-$ go list -m github.com/hashicorp/consul/api@v1.9.9
-go: github.com/hashicorp/consul/api@v1.9.9: invalid version: unknown revision api/v1.9.9
-$ git ls-remote --tags https://github.com/hashicorp/consul \
-      refs/tags/api/v1.32.0 refs/tags/v1.32.0 refs/tags/api/v1.9.9 refs/tags/v1.9.9
-1f486aab22986b70de1ae9aaa368d0613091898e	refs/tags/api/v1.32.0
-8159a14bed92f774437618587fc8b38fe603ade1	refs/tags/v1.9.9
-```
+## Related
 
-The last command queries all four refs and returns two, so the design is CROSSED: the arm that
-RESOLVES has the prefixed tag and **no root tag at all**; the arm that FAILS has a root tag and
-**no prefixed tag**. The prefixed tag is therefore necessary and sufficient, and the root tag is
-consulted in neither direction.
-
-The negative case is the decisive one: a root tag that genuinely exists is still not consulted
-for a subdirectory module.
-
-The `v0.` major is required for the same reason the [sdk](https://github.com/opencharly/sdk)
-uses it: a `major >= 2` version would force a `/vN` suffix on the module path. `<HHMM>` is
-written with leading zeros stripped (`0013` -> `13`), mirroring the sdk scheme, because semver
-rejects a leading-zero numeric segment. A midnight merge (`0000`) strips to `0`.
-
-**Both tags are minted at merge, on the same merged HEAD**: the release tag
-`v<YYYY.DDD.HHMM>` and the module tag `candy/generate-packages/v0.<YYYYDDD>.<HHMM>`. Only the
-first triggers the release workflow — its `on.push.tags` filter is `v*`, and a module tag does
-not begin with `v`. **Observed**, not predicted: minting the first module tag
-(`candy/generate-packages/v0.2026230.708`) took the release-workflow run count from 2 to 3,
-and the single new run was on `v2026.230.0708`. The module tag triggered nothing.
-
-**A consumer with no module tag to pin resolves a pseudo-version** — `@latest` answered
-`v0.0.0-<utc>-<sha>` before the first module tag existed. That resolves and builds; it simply
-carries no release identity, which is what the module tag adds. The shim was therefore never
-*blocked* on the tag, only pinned less precisely.
+- Owning skill: `/charly-internals:plugin` — the plugin/provider model. This candy
+  carries no `skill:` entity of its own; the gap is tracked in
+  [opencharly/opencharly#291](https://github.com/opencharly/opencharly/issues/291).
+- [`opencharly/sdk`](https://github.com/opencharly/sdk) — `packagekit`.
+- [`opencharly/charly`](https://github.com/opencharly/charly) — the charly CLI.
 
 ## License
 
