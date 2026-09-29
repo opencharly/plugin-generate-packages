@@ -121,9 +121,10 @@ zeros (`0013` → `13`) because semver rejects a leading-zero numeric segment.
 
 ## Related
 
-- Owning skill: `/charly-internals:plugin` — the plugin/provider model. This candy
-  carries no `skill:` entity of its own; the gap is tracked in
-  [opencharly/opencharly#291](https://github.com/opencharly/opencharly/issues/291).
+- Owning skill: `/charly-internals:go` — the `charly generate-packages`
+  packaging/release command reference (the plugin's user-facing surface). This
+  candy carries no `skill:` entity of its own; the command is documented by the
+  existing `/charly-internals:go` page, so this is a record, not a gap.
 - [`opencharly/sdk`](https://github.com/opencharly/sdk) — `packagekit`.
 - [`opencharly/charly`](https://github.com/opencharly/charly) — the charly CLI.
 
