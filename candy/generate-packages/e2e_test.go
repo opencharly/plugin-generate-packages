@@ -88,6 +88,15 @@ func TestGeneratePackagesE2E(t *testing.T) {
 	if !strings.Contains(minInfo, "pkgname = charly-minimal") {
 		t.Errorf("minimal .PKGINFO pkgname not charly-minimal:\n%s", minInfo)
 	}
+	// The variant family is mutually-exclusive over a shared file set: every
+	// variant ships /usr/bin/charly + the plugin paths, so the package MUST
+	// declare the family relationships or `pacman -S charly-minimal` over
+	// `charly` aborts on the shared files (opencharly/sdk#348).
+	for _, want := range []string{"provides = charly", "conflict = charly", "replaces = charly"} {
+		if !strings.Contains(minInfo, want) {
+			t.Errorf("minimal .PKGINFO missing family relationship %q:\n%s", want, minInfo)
+		}
+	}
 	if minFiles["usr/lib/charly/plugins/plugin-b"] {
 		t.Errorf("minimal variant leaked plugin-b into the package (have %v)", sortedKeys(minFiles))
 	}
