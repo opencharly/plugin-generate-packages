@@ -52,7 +52,7 @@ func NewMeta() pb.PluginMetaServer {
 // in-proc Invoke(OpRun) path.
 func CliMain(args []string) int {
 	if err := runFromArgs(args); err != nil {
-		fmt.Fprintln(stderr, err)
+		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	return 0

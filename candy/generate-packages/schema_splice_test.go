@@ -45,7 +45,7 @@ func TestServedSchemaSplicesOntoBase(t *testing.T) {
 	if def.Err() != nil {
 		t.Fatalf("base ++ plugin does not define #GeneratePackagesPlugin: %v", def.Err())
 	}
-	if _, err := def.Struct(); err != nil {
-		t.Fatalf("#GeneratePackagesPlugin is not a struct after the splice: %v", err)
+	if def.IncompleteKind()&cue.StructKind == 0 {
+		t.Fatalf("#GeneratePackagesPlugin is not a struct after the splice")
 	}
 }
