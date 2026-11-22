@@ -89,13 +89,23 @@ func TestGeneratePackagesE2E(t *testing.T) {
 		t.Errorf("minimal .PKGINFO pkgname not charly-minimal:\n%s", minInfo)
 	}
 	// The variant family is mutually-exclusive over a shared file set: every
-	// variant ships /usr/bin/charly + the plugin paths, so the package MUST
-	// declare the family relationships or `pacman -S charly-minimal` over
-	// `charly` aborts on the shared files (opencharly/sdk#348).
-	for _, want := range []string{"provides = charly", "conflict = charly", "replaces = charly"} {
+	// variant ships /usr/bin/charly + the plugin paths, so the package declares the
+	// family relationship that stops a co-install (opencharly/sdk#348) —
+	// `provides` (so `Depends: charly` is satisfied by whichever member is installed)
+	// and `conflict` (so `pacman -S charly-minimal` over `charly` removes the seat
+	// rather than failing on shared files).
+	//
+	// It must NOT carry a mutual `replaces` (opencharly/sdk#397): a replacer of an
+	// INSTALLED member has to be unique, and three members that replace each other
+	// make a routine `pacman -Syu` unresolvable — measured live as
+	// "charly-full-…-1 and charly-minimal-…-1 are in conflict" (opencharly/layer-charly#23).
+	for _, want := range []string{"provides = charly", "conflict = charly"} {
 		if !strings.Contains(minInfo, want) {
 			t.Errorf("minimal .PKGINFO missing family relationship %q:\n%s", want, minInfo)
 		}
+	}
+	if strings.Contains(minInfo, "replaces = ") {
+		t.Errorf("minimal .PKGINFO declares a `replaces`: a mutual replace makes `pacman -Syu` unresolvable (sdk#397)\n%s", minInfo)
 	}
 	if minFiles["usr/lib/charly/plugins/plugin-b"] {
 		t.Errorf("minimal variant leaked plugin-b into the package (have %v)", sortedKeys(minFiles))
