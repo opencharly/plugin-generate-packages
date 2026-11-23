@@ -20,6 +20,7 @@ type cli struct {
 	Binary     string   `name:"binary" help:"path to the charly binary to package" required:""`
 	Plugins    string   `name:"plugins" help:"path to the plugins dir to package (filtered to the variant's plugin list)" required:""`
 	Version    string   `name:"version" help:"the CalVer to stamp the packages with" required:""`
+	Release    string   `name:"release" help:"the package release (pkgrel) for a REPUBLISH of an already-shipped version; empty keeps the normal naming"`
 	Arch       string   `name:"arch" help:"GOARCH name (amd64/arm64)" required:""`
 	Variant    string   `name:"variant" help:"the variant name (default: the format's default_variant)"`
 	Formats    []string `name:"formats" help:"the nFPM formats to build (default: all registered formats)" sep:","`
@@ -60,6 +61,7 @@ func runGeneratePackages(c *cli) error {
 		Binary:     c.Binary,
 		PluginsDir: c.Plugins,
 		Version:    c.Version,
+		Release:    c.Release,
 		Arch:       c.Arch,
 		Variant:    c.Variant,
 		Formats:    c.Formats,
