@@ -199,3 +199,34 @@ func sortedKeys(m map[string]bool) []string {
 	sort.Strings(keys)
 	return keys
 }
+
+// A republish of an already-shipped version is a new pkgrel, not a rewritten one: the CLI's
+// --release reaches nFPM end to end, and the file name carries it (opencharly/layer-charly#23 —
+// the charly packages at 2026.326.1922 must be republished with corrected metadata, and a client
+// holding -1 would never see a rewritten -1).
+func TestGeneratePackagesReleaseFlag(t *testing.T) {
+	binary := writeFakeBinary(t, t.TempDir())
+	plugins := writeFakePlugins(t, t.TempDir())
+	out := t.TempDir()
+	args := []string{
+		"--candy", "testdata/charly.yml",
+		"--binary", binary,
+		"--plugins", plugins,
+		"--version", "2026.326.1922",
+		"--release", "2",
+		"--arch", "amd64",
+		"--formats", "archlinux",
+		"--out", out,
+	}
+	if err := runFromArgs(args); err != nil {
+		t.Fatalf("runFromArgs (release 2): %v", err)
+	}
+	pkg := filepath.Join(out, "charly-2026.326.1922-2-x86_64.pkg.tar.zst")
+	if _, err := os.Stat(pkg); err != nil {
+		t.Fatalf("the release did not reach the package name: %v", err)
+	}
+	info, _, _ := readPkg(t, pkg)
+	if !strings.Contains(info, "pkgver = 2026.326.1922-2") {
+		t.Errorf(".PKGINFO does not carry the release:\n%s", info)
+	}
+}

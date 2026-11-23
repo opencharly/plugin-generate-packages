@@ -6,8 +6,8 @@ require (
 	cuelang.org/go v0.16.1
 	github.com/alecthomas/kong v1.15.0
 	github.com/klauspost/compress v1.20.0
-	github.com/opencharly/sdk v0.2026326.2119
-	github.com/opencharly/spec v0.2026326.2005
+	github.com/opencharly/sdk v0.2026326.2300
+	github.com/opencharly/spec v0.2026326.2226
 )
 
 require (
